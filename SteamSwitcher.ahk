@@ -1,50 +1,53 @@
 ;@Ahk2Exe-SetMainIcon res/icon.ico
 ;@Ahk2Exe-SetCopyright joedf (2021)
 ;@Ahk2Exe-SetDescription Simplest AHK based Steam account switcher.
-
-#NoEnv
+#Requires AutoHotkey >=2.0-
 #Include <Steam>
 
-Gui, Add, ListView, vLVA gLVA, Double-Click user name to set the account|
-Gui, Show, , Steam Switcher
-gosub, list_accounts
+myGui := Gui()
+myGui.OnEvent("Close", GuiClose)
+LV := myGui.Add("ListView", "vLVA", ["Double-Click user name to switch account"])
+LV.OnEvent("DoubleClick", SwitchAccount)
+myGui.Title := "Steam Switcher"
+myGui.Show()
+st := Steam()
+ListAccounts()
 return
 
-GuiClose:
-ExitApp
+GuiClose(*)
+{
+	ExitApp()
+}
 
-list_accounts:
-	acc:=Steam.GetAccountsList()
+ListAccounts()
+{
+	acc := st.GetAccountsList()
 	for k, v in acc
-		LV_Add("", k)
-return
+		LV.Add("", k)
+	return
+}
 
-LVA:
-	if (A_GuiEvent = "DoubleClick")  ; There are many other possible values the script can check.
+SwitchAccount(LV, RowNumber)
+{
+	UserName := LV.GetText(RowNumber)
+	if StrLen(UserName) > 3
 	{
-		LV_GetText(UserName, A_EventInfo, 1)
-		if StrLen(UserName) > 3
-		{
-			GuiControl, Disable, LVA
-			LV_Add()
-			
-			Steam.SetActiveUser(UserName)
-			RestartSteam()
-			
-			ExitApp
-		}
+		LV.Enabled := false
+		st.SetActiveUser(UserName)
+		RestartSteam()
+
+		ExitApp()
 	}
-return
+}
 
 RestartSteam() {
-	Process, Exist , steam.exe
-	if (pid:=ErrorLevel) {
-		LV_Add("", "Restarting Steam, please wait ...")
-		Steam.Exit()
-		Process, WaitClose, %pid%, 5
-		Sleep, 3000
+	if (pid := ProcessExist("steam.exe")) {
+		LV.Add("", "Restarting Steam, please wait ...")
+		st.Exit()
+		waitPid := ProcessWaitClose(pid, 5)
+		Sleep(3000)
 	} else {
-		LV_Add("", "Starting Steam, please wait ...")
+		LV.Add("", "Starting Steam, please wait ...")
 	}
-	Steam.Start()
+	st.Start()
 }
